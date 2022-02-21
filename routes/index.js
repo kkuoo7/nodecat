@@ -8,13 +8,15 @@ const URL = "http://localhost:8082/v2";
 
 axios.defaults.headers.origin = "http://localhost:4000"; 
 
-const request = async (req,api)=>{ // request라는 함수를 선언 
-    try {
-        if(!req.session.jwt) { // 발급받은 토큰이 없을 시에 
-            const tokenResult = await axios.post(`${URL}/token`, { //8082/v2/token
+const request = async (req, api) => { // 토큰을 발급하고, 인자로 받은 주소로 이동하여 데이터를 받아오는 함수. 
+    try {    
+        console.log(process.env.CLIENT_SECRET);
+
+        if(!req.session.jwt) { 
+            const tokenResult = await axios.post(`${URL}/token`, { //nodeapi 서버(8082/v2/token)
+                //로 이동한 다음, 등록된 도메인에 토큰을 발급한다. 
                 clientSecret : process.env.CLIENT_SECRET,
             }); 
-            // 8082/v2/token 에서 res.json()으로 tokenResult에 code,message,token을 넘겨주었다. 
 
             // tokenResult.data를 통해 접근이 가능하다. 
             req.session.jwt = tokenResult.data.token; 
@@ -23,59 +25,60 @@ const request = async (req,api)=>{ // request라는 함수를 선언
 
         // header라는 객체를 만들고 그 안에 authrorization을 속성명으로 가지는 객체를 만듬. 
         // req.headers.authorization 을 통해 req.session.jwt 값에 접근이 가능하다. 
-        return axios.get(`${URL}${api}`,{ // 8082/v2/api를 호출해서 결과를 반환한다. 
+        return axios.get(`${URL}${api}`, { // 8082/v2/api를 호출해서 결과를 반환한다. 
             headers : {authorization : req.session.jwt},
         }); 
 
     } catch (error) {
         if(error.response.status === 419) { // 토큰 만료시에 
             delete req.session.jwt; 
-            return request(req,api);
+            return request(req, api);
             // 삭제하고 재발급 받기 
         }
 
-        return error.response; 
+        console.log(error.response);
+        return error.response
     }
 };
 
+
 router.get("/mypost", async (req,res,next)=>{
     try {
-        console.log("Hi");
-        const result = await request(req,"/posts/my");
+        const result = await request(req, "/posts/my");
         // result에 nodebird-api 서버에서 응답한 res.json()데이터가 들어있다. 
         // 이걸 유의미한 데이터로 쓰기 위해서는 result.data를 하면 객체형태로 사용할 수 있다.
         
         res.json(result.data); // 받은 데이터를 다시 res.json()으로 클라이언트에 전달해서 화면에 보여준다. 
     } catch (error) {
-        console.error(error);
-        next(error); 
+        console.error(error.response.data.message);
+        next(error.response.data); 
     }
 }); 
 
-router.get("/search/:hashtag",async(req,res,next)=>{
+router.get("/search/:hashtag", async(req, res, next) => {
     try {
         const result = await request(req,`/posts/hashtag/${encodeURIComponent(req.params.hashtag)}`); 
         // hashtag를 인코딩해서 url로 전달
 
         res.json(result.data);
-    } catch(error) {
-        if(error.code) {
-            console.error(error);
-            next(error); 
-        }
-    }
-})
 
-router.get("/follow",async(req,res)=>{
+    } catch(error) {
+        console.error(error.response.data.message); 
+        next(error.response.data);
+    }
+});
+
+router.get("/follow",async(req, res, next)=>{
     try{
 
         //8082/v2/follow에서 res.json()으로 {code,follower,following} 을 보내준다. 
-        const result = await request(req,'/follow'); 
+        const result = await request(req, '/follow'); 
         res.json(result.data);
 
     } catch (error) {
-        console.error(error); 
-        next(error);
+        console.error(error.response.data.message); 
+        next(error.response.data);
+        
     }
 })
 
@@ -115,8 +118,8 @@ router.get("/follow",async(req,res)=>{
 //     }
 // }); 
 
-router.get("/",(req,res)=>{
-    res.render("main",{key : process.env.CLIENT_SECRET}); 
+router.get("/",(req, res) => {
+    res.render("main", {key : process.env.CLIENT_SECRET}); 
 });  
 
 module.exports = router; 

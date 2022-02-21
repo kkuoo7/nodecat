@@ -10,6 +10,8 @@
         <script>
             axios.post("http://localhost:8082/v2/token", { // 이렇게 되면 4000 포트의 브라우저에서 
                 // 8082포트의 서버로 데이터를 전송하는 것이기에 CORS 에러가 난다. 
+                // 즉, 요청을 보낸 클라이언트와 요청을 받는 서버의 도메인이 다르면 CORS 에러가 난다. 
+                
                 clientSecret : '{{key}}'
             })
                 .then((res)=>{
